@@ -399,7 +399,6 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
           onKey: (rawKey) {
             // TODO dart embedder doesn't send all raw event right now, this is going to
             // be fixed at some point.
-            print(rawKey);
             if (rawKey is RawKeyUpEvent) {
 
             } else if (rawKey is RawKeyDownEvent) {
@@ -411,7 +410,6 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
                 if (it.hidUsage == 40) select();
               } else if(event.data is RawKeyEventDataAndroid) {
                 var it = event.data as RawKeyEventDataAndroid;
-                print(it.keyCode);
                 // TODO holding down seems to be broken now.
                 if(it.keyCode == 264) moveDown();
                 if(it.keyCode == 265) moveUp();
