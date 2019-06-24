@@ -3,7 +3,7 @@
 A file system explorer specially made for desktop machines.
 
 
-![demo](demo.mp4 "demo")
+![demo](demo.gif "demo")
 
 
 
