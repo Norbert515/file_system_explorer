@@ -399,13 +399,24 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
           onKey: (rawKey) {
             // TODO dart embedder doesn't send all raw event right now, this is going to
             // be fixed at some point.
+            print(rawKey);
             if (rawKey is RawKeyUpEvent) {
+
             } else if (rawKey is RawKeyDownEvent) {
               RawKeyDownEvent event = rawKey;
-              var it = event.data as RawKeyEventDataFuchsia;
-              if (it.hidUsage == 81) moveDown();
-              if (it.hidUsage == 82) moveUp();
-              if (it.hidUsage == 40) select();
+              if(event.data is RawKeyEventDataFuchsia) {
+                var it = event.data as RawKeyEventDataFuchsia;
+                if (it.hidUsage == 81) moveDown();
+                if (it.hidUsage == 82) moveUp();
+                if (it.hidUsage == 40) select();
+              } else if(event.data is RawKeyEventDataAndroid) {
+                var it = event.data as RawKeyEventDataAndroid;
+                print(it.keyCode);
+                // TODO holding down seems to be broken now.
+                if(it.keyCode == 264) moveDown();
+                if(it.keyCode == 265) moveUp();
+                if(it.keyCode == 257) select();
+              }
             }
           },
           child: Material(
@@ -555,7 +566,7 @@ class _File extends StatelessWidget {
             Icon(Icons.insert_drive_file,),
             Container(
               padding:
-              EdgeInsets.only(left: 8, top: 16, right: 8, bottom: 16), //
+              EdgeInsets.only(left: 8, right: 8, ), //
               child: Text(path.basename(entity.file.path)),
             ),
           ],
