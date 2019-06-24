@@ -296,9 +296,11 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
       // windows systems.
       for(int i = 'A'.codeUnitAt(0); i < 'Z'.codeUnitAt(0); i++) {
         Directory partition = Directory(path.absolute("${String.fromCharCode(i)}://"));
-        if(partition.existsSync()) {
-          roots.add(partition);
-        }
+        try {
+          if (partition.existsSync()) {
+            roots.add(partition);
+          }
+        } catch(e) {}
       }
 
     }
