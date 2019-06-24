@@ -14,17 +14,22 @@ enum _FlutterFileType { File, Folder }
 // search patterns and confirm buttons
 
 class _FlutterFileSystem {
-  _FlutterFileSystem(Directory root,
+  _FlutterFileSystem(List<Directory> roots,
       {this.onChanged, this.onMovedToNext, this.onMovedToPrevious, this.onFileSelected}) {
-    _root = _FlutterFolder(
-      depth: 0,
-      directory: root,
-    );
 
-    items = [_root];
+    // Allow multiple roots
+    _roots = roots.map((it) {
+      return _FlutterFolder(
+          depth: 0,
+          directory: it
+      );
+    }).toList();
+
+
+    items = _roots;
   }
 
-  _FlutterFileSystemEntity _root;
+  List<_FlutterFileSystemEntity> _roots;
 
   int selectedIndex;
   _FlutterFileSystemEntity get selectedEntity => items[selectedIndex];
@@ -43,9 +48,11 @@ class _FlutterFileSystem {
 
   int bufferMaxDepth = 0;
 
-  Iterable<_FlutterFileSystemEntity> convertToLinear() {
+  Iterable<_FlutterFileSystemEntity> convertToLinear() sync* {
     bufferMaxDepth = 0;
-    return _convertToLinear(_root);
+    for(_FlutterFileSystemEntity it in _roots) {
+      yield* _convertToLinear(it);
+    }
   }
   Iterable<_FlutterFileSystemEntity> _convertToLinear(
       _FlutterFileSystemEntity root) sync* {
@@ -271,7 +278,6 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
 
   _FlutterFileSystem fileSystem;
 
-  Directory root;
 
   ScrollController controller;
 
@@ -281,18 +287,34 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
   @override
   void initState() {
     super.initState();
-    root = widget.rootDirectory ?? Directory(path.absolute("C:\\\\"));
-    fileSystem = _FlutterFileSystem(
-      root,
-      onChanged: () {
-        if(widget.onPathChanged != null) {
-          widget.onPathChanged(fileSystem.selectedEntity.path);
+    List<Directory> roots = [];
+
+    if(widget.rootDirectory != null) {
+      roots = [widget.rootDirectory];
+    } else {
+      // Dirty hack because I could not find a way to list the partitions on
+      // windows systems.
+      for(int i = 'A'.codeUnitAt(0); i < 'Z'.codeUnitAt(0); i++) {
+        Directory partition = Directory(path.absolute("${String.fromCharCode(i)}://"));
+        if(partition.existsSync()) {
+          roots.add(partition);
         }
-        setState(() {});
-      },
-      onMovedToNext: moveToNext,
-      onMovedToPrevious: moveToPrevious,
-      onFileSelected: widget.onPathSelected
+      }
+
+    }
+
+
+    fileSystem = _FlutterFileSystem(
+        roots,
+        onChanged: () {
+          if(widget.onPathChanged != null) {
+            widget.onPathChanged(fileSystem.selectedEntity.path);
+          }
+          setState(() {});
+        },
+        onMovedToNext: moveToNext,
+        onMovedToPrevious: moveToPrevious,
+        onFileSelected: widget.onPathSelected
     );
     focusNode = FocusNode();
     controller = ScrollController();
@@ -364,7 +386,7 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
       data: Theme.of(context).copyWith(
         backgroundColor: widget.backgroundColor,
         iconTheme: Theme.of(context).iconTheme.copyWith(
-          color: widget.iconColor
+            color: widget.iconColor
         ),
         accentColor: widget.selectedItemColor,
       ),
@@ -389,59 +411,59 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
             child: SizedBox(
               height: 600,
               child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Scrollbar(
-                      child: SizedBox(
-                        width: fileSystem.maxDepth * 20 + 400.0 < constraints.maxWidth?
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Scrollbar(
+                        child: SizedBox(
+                          width: fileSystem.maxDepth * 20 + 400.0 < constraints.maxWidth?
                           constraints.maxWidth : constraints.maxWidth + fileSystem.maxDepth * 20,
-                        child: ListView.builder(
-                          itemExtent: _ITEM_HEIGHT,
-                          controller: controller,
-                          itemCount: fileSystem.items.length,
-                          itemBuilder: (context, index) {
-                            _FlutterFileSystemEntity entity = fileSystem.items[index];
+                          child: ListView.builder(
+                            itemExtent: _ITEM_HEIGHT,
+                            controller: controller,
+                            itemCount: fileSystem.items.length,
+                            itemBuilder: (context, index) {
+                              _FlutterFileSystemEntity entity = fileSystem.items[index];
 
-                            bool selected = fileSystem.selectedIndex == index;
+                              bool selected = fileSystem.selectedIndex == index;
 
-                            if (entity.type == _FlutterFileType.Folder) {
-                              return SizedBox(
-                                height: _ITEM_HEIGHT,
-                                child: _Folder(
-                                  key: ObjectKey((entity as _FlutterFolder).directory.path),
-                                  entity: entity as _FlutterFolder,
-                                  selected: selected,
-                                  onSelect: () {
-                                    selectAfterTap(index);
-                                  },
-                                  onToggle: () {
-                                    fileSystem.toggle(index);
-                                  },
-                                ),
-                              );
-                            } else if (entity.type == _FlutterFileType.File) {
-                              return SizedBox(
-                                height: _ITEM_HEIGHT,
-                                child: _File(
-                                  key: ObjectKey((entity as _FlutterFile).file.path),
-                                  entity: entity as _FlutterFile,
-                                  selected: selected,
-                                  onSelect: () {
-                                    selectAfterTap(index);
-                                  },
-                                  onFinalSelect: () {
-                                    fileSystem.toggle(index);
-                                  },
-                                ),
-                              );
-                            }
-                          },
+                              if (entity.type == _FlutterFileType.Folder) {
+                                return SizedBox(
+                                  height: _ITEM_HEIGHT,
+                                  child: _Folder(
+                                    key: ObjectKey((entity as _FlutterFolder).directory.path),
+                                    entity: entity as _FlutterFolder,
+                                    selected: selected,
+                                    onSelect: () {
+                                      selectAfterTap(index);
+                                    },
+                                    onToggle: () {
+                                      fileSystem.toggle(index);
+                                    },
+                                  ),
+                                );
+                              } else if (entity.type == _FlutterFileType.File) {
+                                return SizedBox(
+                                  height: _ITEM_HEIGHT,
+                                  child: _File(
+                                    key: ObjectKey((entity as _FlutterFile).file.path),
+                                    entity: entity as _FlutterFile,
+                                    selected: selected,
+                                    onSelect: () {
+                                      selectAfterTap(index);
+                                    },
+                                    onFinalSelect: () {
+                                      fileSystem.toggle(index);
+                                    },
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }
+                    );
+                  }
               ),
             ),
           ),
@@ -531,7 +553,7 @@ class _File extends StatelessWidget {
             Icon(Icons.insert_drive_file,),
             Container(
               padding:
-                  EdgeInsets.only(left: 8, top: 16, right: 8, bottom: 16), //
+              EdgeInsets.only(left: 8, top: 16, right: 8, bottom: 16), //
               child: Text(path.basename(entity.file.path)),
             ),
           ],
@@ -556,7 +578,7 @@ class SelectDetector extends StatefulWidget {
 
 class _SelectDetectorState extends State<SelectDetector> {
 
-   /// Custom double tap behavior
+  /// Custom double tap behavior
   ///
   /// Because the [GestureDetector] shouldn't wait until a possible
   /// second tap has occurred. Instead it should select the item and open the folder
@@ -577,7 +599,7 @@ class _SelectDetectorState extends State<SelectDetector> {
           widget.onToggle();
         }
         lastTapTime = now.millisecondsSinceEpoch;
-        },
+      },
       child: widget.child,
     );
   }
