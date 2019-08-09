@@ -51,7 +51,7 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(path?? "-"),
             RaisedButton(
               onPressed: () async {
-                path = await showPicker(context);
+                path = await showPicker(context, topInfo: Text("Choose a file to show"));
                 setState((){});
               },
               child: Text("Select a file"),

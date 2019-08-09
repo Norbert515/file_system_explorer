@@ -20,6 +20,7 @@ class MyApp extends StatelessWidget {
           iconTheme: IconThemeData(
             color: Color(0xffbbbbbb),
           ),
+          brightness: Brightness.light,
           textTheme: TextTheme(
             body1: TextStyle(color: Color(0xffbbbbbb)),
           )
