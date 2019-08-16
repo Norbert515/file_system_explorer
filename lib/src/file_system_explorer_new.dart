@@ -32,7 +32,7 @@ class _FlutterFileSystem {
   List<_FlutterFileSystemEntity> _roots;
 
   int selectedIndex;
-  _FlutterFileSystemEntity get selectedEntity => items[selectedIndex];
+  _FlutterFileSystemEntity get selectedEntity => selectedIndex == null? null: items[selectedIndex];
 
   List<_FlutterFileSystemEntity> items;
 
@@ -310,7 +310,9 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
         roots,
         onChanged: () {
           if(widget.onPathChanged != null) {
-            widget.onPathChanged(fileSystem.selectedEntity.path);
+            if(fileSystem.selectedIndex != null) {
+              widget.onPathChanged(fileSystem.selectedEntity.path);
+            }
           }
           setState(() {});
         },
@@ -469,6 +471,9 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
                                   ),
                                 );
                               }
+
+                              assert(false, "Just here for the linter, should never execute");
+                              return SizedBox();
                             },
                           ),
                         ),
@@ -509,27 +514,30 @@ class _FolderState extends State<_Folder> {
     return SelectDetector(
       onSelect: widget.onSelect,
       onToggle: widget.onToggle,
-      child: Container(
-        color: widget.selected ? theme.accentColor : theme.backgroundColor,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            SizedBox(
-              width: 20.0 * widget.entity.depth,
-            ),
-            IconButton(
-              onPressed: widget.onToggle,
-              icon: Icon(widget.entity.opened
-                  ? Icons.keyboard_arrow_up
-                  : Icons.keyboard_arrow_down,),
-            ),
-            Icon(Icons.folder),
-            SizedBox(
-              width: 8,
-            ),
-            Text(path.basename(widget.entity.directory.path)),
-          ],
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          color: widget.selected ? theme.accentColor : theme.backgroundColor,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              SizedBox(
+                width: 20.0 * widget.entity.depth,
+              ),
+              IconButton(
+                onPressed: widget.onToggle,
+                icon: Icon(widget.entity.opened
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,),
+              ),
+              Icon(Icons.folder),
+              SizedBox(
+                width: 8,
+              ),
+              Expanded(child: Text(path.basename(widget.entity.directory.path), overflow: TextOverflow.ellipsis,)),
+            ],
+          ),
         ),
       ),
     );
@@ -562,10 +570,11 @@ class _File extends StatelessWidget {
               width: 24 + 8.0 + 8.0 + 8.0,
             ),
             Icon(Icons.insert_drive_file,),
-            Container(
-              padding:
-              EdgeInsets.only(left: 8, right: 8, ), //
-              child: Text(path.basename(entity.file.path)),
+            Expanded(
+              child: Container(
+                padding: EdgeInsets.only(left: 8, right: 8, ),
+                child: Text(path.basename(entity.file.path), overflow: TextOverflow.ellipsis,),
+              ),
             ),
           ],
         ),
