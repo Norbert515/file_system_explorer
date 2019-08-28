@@ -292,15 +292,23 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
     if(widget.rootDirectory != null) {
       roots = [widget.rootDirectory];
     } else {
-      // Dirty hack because I could not find a way to list the partitions on
-      // windows systems.
-      for(int i = 'A'.codeUnitAt(0); i < 'Z'.codeUnitAt(0); i++) {
-        Directory partition = Directory(path.absolute("${String.fromCharCode(i)}://"));
-        try {
-          if (partition.existsSync()) {
-            roots.add(partition);
-          }
-        } catch(e) {}
+      if(Platform.isWindows) {
+        // Dirty hack because I could not find a way to list the partitions on
+        // windows systems.
+        for (int i = 'A'.codeUnitAt(0); i < 'Z'.codeUnitAt(0); i++) {
+          Directory partition = Directory(
+              path.absolute("${String.fromCharCode(i)}://"));
+          try {
+            if (partition.existsSync()) {
+              roots.add(partition);
+            }
+          } catch (e) {}
+        }
+      } else {
+        Directory home = Directory("/");
+        if(home.existsSync()) {
+          roots.add(home);
+        }
       }
 
     }
