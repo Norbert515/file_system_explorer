@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_system_explorer/src/file_system_explorer_new.dart';
+import 'package:provider/provider.dart';
 
-Future<String> showPicker(BuildContext context, {Widget topInfo}) {
+Future<String> showPicker(BuildContext context, {Widget topInfo, FlutterFileType searchFor}) {
   return showDialog(context: context, builder: (context) {
     return Dialog(
       child: FilePickerDialog(
+        searchFor: searchFor,
         topInfo: topInfo,
       )
     );
@@ -16,8 +19,9 @@ Future<String> showPicker(BuildContext context, {Widget topInfo}) {
 class FilePickerDialog extends StatelessWidget {
 
   final Widget topInfo;
+  final FlutterFileType searchFor;
 
-  const FilePickerDialog({Key key, this.topInfo}) : super(key: key);
+  const FilePickerDialog({Key key, this.topInfo, this.searchFor}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +33,7 @@ class FilePickerDialog extends StatelessWidget {
           topInfo?? SizedBox(),
           Expanded(
             child: FilePicker(
+              searchFor: searchFor,
               onPathSelected: (path) {
                 if(path != null) {
                   Navigator.pop(context, path);
@@ -45,6 +50,33 @@ class FilePickerDialog extends StatelessWidget {
 }
 
 
+class _CurrentFileSystemEntitiy with ChangeNotifier{
+
+  final FlutterFileType searchFor;
+
+  FileSystemEntity _fileSystemEntity;
+
+  _CurrentFileSystemEntitiy(this.searchFor);
+
+  FileSystemEntity get path => _fileSystemEntity;
+  set fileSystemEntity(entity) {
+    _fileSystemEntity = entity;
+    if(entity is File) {
+      isFile = true;
+      notifyListeners();
+    } else if(entity is Directory) {
+      isFile = false;
+      notifyListeners();
+    }
+  }
+
+  bool isFile;
+
+  bool get isSearchedFor => searchFor == null? true: searchFor == FlutterFileType.File? isFile?? false: !(isFile?? false);
+
+
+
+}
 /// TODO this is the base implementation, this is going to need a few Desktop
 /// specific features in the future.
 ///
@@ -60,84 +92,95 @@ class FilePickerDialog extends StatelessWidget {
 class FilePicker extends StatelessWidget {
 
 
-  FilePicker({Key key, this.onPathSelected, this.searchFor}) : super(key: key);
+  FilePicker({Key key, this.onPathSelected, this.searchFor}) :
+        __currentFileSystemEntitiy = _CurrentFileSystemEntitiy(searchFor), super(key: key);
 
   final TextEditingController textEditingController = TextEditingController();
 
   final ValueChanged<String> onPathSelected;
-  final SearchFor searchFor;
+  final FlutterFileType searchFor;
+  final _CurrentFileSystemEntitiy __currentFileSystemEntitiy;
 
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
-    return Container(
-      color: theme.backgroundColor,
-      padding: EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 16,
-      ),
-      child: Material(
+    return ChangeNotifierProvider<_CurrentFileSystemEntitiy>(
+      builder: (context) => __currentFileSystemEntitiy,
+      child: Container(
         color: theme.backgroundColor,
-        child: Column(
-          children: <Widget>[
-            TextField(
-              style: theme.textTheme.body1,
-              controller: textEditingController,
-              decoration: InputDecoration(
-                contentPadding: EdgeInsets.all(12),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: Color(0xff323232),
-                    width: 2
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        child: Material(
+          color: theme.backgroundColor,
+          child: Column(
+            children: <Widget>[
+              TextField(
+                style: theme.textTheme.body1,
+                controller: textEditingController,
+                decoration: InputDecoration(
+                  contentPadding: EdgeInsets.all(12),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Color(0xff323232),
+                      width: 2
+                    ),
+                  ),
+
+                ),
+
+              ),
+              SizedBox(height: 4,),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Color(0xff323232)
+                    )
+                  ),
+                  child: FileSystemExplorer(
+                    searchFor: searchFor,
+                    onPathChanged: (entity) {
+                      textEditingController.text = entity.path;
+                      __currentFileSystemEntitiy.fileSystemEntity = entity;
+                    },
+                    onPathSelected: (path) {
+                      onPathSelected(path);
+                    },
                   ),
                 ),
-
               ),
-
-            ),
-            SizedBox(height: 4,),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Color(0xff323232)
-                  )
-                ),
-                child: FileSystemExplorer(
-                  searchFor: searchFor,
-                  onPathChanged: (path) {
-                    textEditingController.text = path;
-                  },
-                  onPathSelected: (path) {
-                    onPathSelected(path);
-                  },
-                ),
+              SizedBox(height: 8,),
+              Row(
+                children: <Widget>[
+                  Spacer(),
+                  Consumer<_CurrentFileSystemEntitiy>(
+                    builder: (context, current, child) {
+                      return MaterialButton(
+                        color: Color(0xff365880),
+                        elevation: 2,
+                        child: child,
+                        onPressed: current.isSearchedFor? (){
+                          onPathSelected(textEditingController.text);
+                        }: null,
+                      );
+                    },
+                    child: Text("Ok", style: TextStyle(color: theme.textTheme.body1.color, fontWeight: FontWeight.w600),),
+                  ),
+                  SizedBox(width: 16,),
+                  MaterialButton(
+                    elevation: 2,
+                    color: Color(0xff4c5052),
+                    child: Text("Cancle", style: theme.textTheme.body1,),
+                    onPressed: (){
+                      onPathSelected(null);
+                    },
+                  ),
+                ],
               ),
-            ),
-            SizedBox(height: 8,),
-            Row(
-              children: <Widget>[
-                Spacer(),
-                MaterialButton(
-                  color: Color(0xff365880),
-                  elevation: 2,
-                  child: Text("Ok", style: TextStyle(color: theme.textTheme.body1.color, fontWeight: FontWeight.w600),),
-                  onPressed: (){
-                    onPathSelected(textEditingController.text);
-                  },
-                ),
-                SizedBox(width: 16,),
-                MaterialButton(
-                  elevation: 2,
-                  color: Color(0xff4c5052),
-                  child: Text("Cancle", style: theme.textTheme.body1,),
-                  onPressed: (){
-                    onPathSelected(null);
-                  },
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

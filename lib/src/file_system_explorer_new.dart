@@ -4,8 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'dart:async';
 
-enum SearchFor { File, Folder }
-enum _FlutterFileType { File, Folder }
+enum FlutterFileType { File, Folder }
 
 
 // TODO implement pattern matching (search for files, just as IntelliJ does)
@@ -15,7 +14,7 @@ enum _FlutterFileType { File, Folder }
 
 class _FlutterFileSystem {
   _FlutterFileSystem(List<Directory> roots,
-      {this.onChanged, this.onMovedToNext, this.onMovedToPrevious, this.onFileSelected}) {
+      {this.searchFor, this.onChanged, this.onMovedToNext, this.onMovedToPrevious, this.onFileSelected}) {
 
     // Allow multiple roots
     _roots = roots.map((it) {
@@ -39,6 +38,7 @@ class _FlutterFileSystem {
 
   int maxDepth = 0;
 
+  final FlutterFileType searchFor;
   final VoidCallback onChanged;
   final VoidCallback onMovedToNext;
   final VoidCallback onMovedToPrevious;
@@ -78,7 +78,7 @@ class _FlutterFileSystem {
       }
       // Can't yield in forEach call
       for (_FlutterFileSystemEntity it in rootFolder.children) {
-        if (it.type == _FlutterFileType.Folder) {
+        if (it.type == FlutterFileType.Folder) {
           _FlutterFolder folder = it;
           yield* _convertToLinear(folder);
         } else {
@@ -94,20 +94,17 @@ class _FlutterFileSystem {
   }
 
   void toggleCurrent() {
-    if(selectedEntity.type == _FlutterFileType.Folder) {
-      _FlutterFolder folder = selectedEntity as _FlutterFolder;
-      _toggleFolder(folder);
-    } else if(selectedEntity.type == _FlutterFileType.File){
-      onFileSelected(selectedEntity.path);
-    }
+    toggle(selectedIndex);
   }
 
   void toggle(int index) {
     _FlutterFileSystemEntity entity = items[index];
-    if (entity.type == _FlutterFileType.Folder) {
+    // Open or close a folder
+    if (entity.type == FlutterFileType.Folder) {
       _FlutterFolder folder = entity;
       _toggleFolder(folder);
-    } else if(entity.type == _FlutterFileType.File){
+    } else if(searchFor == FlutterFileType.File && selectedEntity.type == FlutterFileType.File){
+      // We are searching for a file, and toggling a file doesn't make sense so select it
       onFileSelected(entity.path);
     }
   }
@@ -168,22 +165,26 @@ abstract class _FlutterFileSystemEntity {
   _FlutterFileSystemEntity(this.depth, this.type);
 
   final int depth;
-  final _FlutterFileType type;
+  final FlutterFileType type;
+  FileSystemEntity get fileSystemEntity;
 
   String get path;
 }
 
 class _FlutterFile extends _FlutterFileSystemEntity {
-  _FlutterFile({int depth, this.file}) : super(depth, _FlutterFileType.File);
+  _FlutterFile({int depth, this.file}) : super(depth, FlutterFileType.File);
 
   final File file;
 
   String get path => file.path;
+
+  @override
+  FileSystemEntity get fileSystemEntity => file;
 }
 
 class _FlutterFolder extends _FlutterFileSystemEntity {
   _FlutterFolder({int depth, this.directory})
-      : super(depth, _FlutterFileType.Folder);
+      : super(depth, FlutterFileType.Folder);
 
   final Directory directory;
   bool opened = false;
@@ -220,6 +221,9 @@ class _FlutterFolder extends _FlutterFileSystemEntity {
   void close() {
     opened = false;
   }
+
+  @override
+  FileSystemEntity get fileSystemEntity => directory;
 }
 
 class FileSystemExplorer extends StatefulWidget {
@@ -235,9 +239,9 @@ class FileSystemExplorer extends StatefulWidget {
     this.rootDirectory,
   }) : assert(onPathSelected != null), super(key: key);
 
-  final SearchFor searchFor;
+  final FlutterFileType searchFor;
 
-  final ValueChanged<String> onPathChanged;
+  final ValueChanged<FileSystemEntity> onPathChanged;
 
   final ValueChanged<String> onPathSelected;
 
@@ -316,10 +320,11 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
 
     fileSystem = _FlutterFileSystem(
         roots,
+        searchFor: widget.searchFor,
         onChanged: () {
           if(widget.onPathChanged != null) {
             if(fileSystem.selectedIndex != null) {
-              widget.onPathChanged(fileSystem.selectedEntity.path);
+              widget.onPathChanged(fileSystem.selectedEntity.fileSystemEntity);
             }
           }
           setState(() {});
@@ -448,7 +453,7 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
 
                               bool selected = fileSystem.selectedIndex == index;
 
-                              if (entity.type == _FlutterFileType.Folder) {
+                              if (entity.type == FlutterFileType.Folder) {
                                 return SizedBox(
                                   height: _ITEM_HEIGHT,
                                   child: _Folder(
@@ -463,7 +468,7 @@ class _FileSystemExplorerState extends State<FileSystemExplorer> {
                                     },
                                   ),
                                 );
-                              } else if (entity.type == _FlutterFileType.File) {
+                              } else if (entity.type == FlutterFileType.File) {
                                 return SizedBox(
                                   height: _ITEM_HEIGHT,
                                   child: _File(
