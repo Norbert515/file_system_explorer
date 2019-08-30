@@ -60,11 +60,12 @@ class FilePickerDialog extends StatelessWidget {
 class FilePicker extends StatelessWidget {
 
 
-  FilePicker({Key key, this.onPathSelected}) : super(key: key);
+  FilePicker({Key key, this.onPathSelected, this.searchFor}) : super(key: key);
 
   final TextEditingController textEditingController = TextEditingController();
 
   final ValueChanged<String> onPathSelected;
+  final SearchFor searchFor;
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +104,7 @@ class FilePicker extends StatelessWidget {
                   )
                 ),
                 child: FileSystemExplorer(
+                  searchFor: searchFor,
                   onPathChanged: (path) {
                     textEditingController.text = path;
                   },
